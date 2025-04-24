@@ -1,0 +1,33 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: false
+  errors:
+    mixed_case_types: error
+    invalid_case_patterns: error
+    invalid_library_prefix: error
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    # File/directory naming rules
+    file_names: error
+    library_names: error
+    library_prefixes: error
+    constant_identifier_names: error
+    camel_case_types: error
+    
+    # Case sensitivity rules
+    avoid_double_and_int_checks: error
+    avoid_mixed_case_types: error
+    
+    # Import rules
+    directives_ordering: error
+    library_private_types_in_public_api: error
+    prefer_relative_imports: error
+
