@@ -1,72 +1,31 @@
-import 'package:camera/camera.dart';
-import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../Models/scanner_state.dart';
-
 class ScannerRepository {
-  Future<List<CameraDescription>> getAvailableCameras() async {
+  Future<bool> toggleTorch(
+      MobileScannerController controller,
+      bool currentState,
+      ) async {
+    await controller.toggleTorch();
+    return !currentState;
+  }
+
+  Future<void> setZoom(
+      MobileScannerController controller,
+      double zoom,
+      ) async {
     try {
-      return await availableCameras();
+      await controller.setZoomScale(zoom);
     } catch (e) {
-      if (e is CameraException) {
-        throw ScannerError.initializationFailed;
-      }
-      rethrow;
+      throw Exception('Failed to set zoom: $e');
     }
   }
 
-  Future<MobileScannerController> createScannerController({
-    required bool torchEnabled,
-    required List<BarcodeFormat> formats,
-    required bool autoStart,
-  }) async {
+  Future<void> restartCamera(MobileScannerController controller) async {
     try {
-      return MobileScannerController(
-        torchEnabled: torchEnabled,
-        formats: formats,
-        autoStart: autoStart,
-      );
+      await controller.stop();
+      await controller.start();
     } catch (e) {
-      throw ScannerError.initializationFailed;
-    }
-  }
-
-  Future<CameraController> createCameraController({
-    required CameraDescription camera,
-    required ResolutionPreset resolutionPreset,
-    required bool enableAudio,
-  }) async {
-    try {
-      final controller = CameraController(
-        camera,
-        resolutionPreset,
-        enableAudio: enableAudio,
-      );
-      await controller.initialize();
-      return controller;
-    } catch (e) {
-      if (e is CameraException) {
-        throw ScannerError.initializationFailed;
-      }
-      rethrow;
-    }
-  }
-
-  Future<void> disposeControllers({
-    required MobileScannerController? scannerController,
-    required CameraController? cameraController,
-  }) async {
-    try {
-      await scannerController?.dispose();
-    } catch (e) {
-      debugPrint('Error disposing scanner controller: $e');
-    }
-
-    try {
-      await cameraController?.dispose();
-    } catch (e) {
-      debugPrint('Error disposing camera controller: $e');
+      throw Exception('Failed to restart camera: $e');
     }
   }
 }

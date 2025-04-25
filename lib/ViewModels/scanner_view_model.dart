@@ -1,357 +1,251 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui';
-import 'package:flutter/animation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:camera/camera.dart';
-import '../Models/scan_results.dart';
-import '../Models/scanner_state.dart';
-import '../Repositories/scanner_repository.dart';
+import '../Views/Widgets/scan_result_dialog.dart';
+import '../repositories/scanner_repository.dart';
 
-class ScannerController extends GetxController with SingleGetTickerProviderMixin{
-  final ScannerRepository _repository;
+class ScannerViewModel extends GetxController with GetTickerProviderStateMixin {
+  final ScannerRepository _repository = ScannerRepository();
 
-  ScannerController(this._repository);
+  late MobileScannerController cameraController;
+  late AnimationController zoomController;
+  late Animation<double> zoomAnimation;
 
-  // Reactive state variables
-  var mobileScannerController = Rxn<MobileScannerController>();
-  var cameraController = Rxn<CameraController>();
-  var flashEnabled = false.obs;
-  var isZoomed = false.obs;
-  var lastScanResult = Rxn<ScanResult>();
-  var state = ScannerState.initializing.obs;
-  late AnimationController _animationController;
-  // Add these new properties
-  var scanLinePosition = 0.0.obs;
-  late Animation<double> _scanAnimation;
-  var isScanPaused = false.obs;
-  // Add these new variables
-  var detectedBarcodeOffset = Offset.zero.obs;
-  var detectedBarcodeSize = Size.zero.obs;
-  var shouldCenterBarcode = false.obs;
-  var targetRect = Rect.zero.obs;
-  // In your ScannerController class
-  final currentZoomLevel = 1.0.obs;  // Track zoom manually
-  final _zoomDebounceTimer = Timer(Duration.zero, () {}).obs;
-  final _scanDebouncer = Timer(Duration.zero, () {}).obs;
-  // Change this:
+  final isCameraInitialized = false.obs;
+  final cameraError = ''.obs;
+  final isTorchOn = false.obs;
+  final hasScanned = false.obs;
+  final scannedValue = ''.obs;
+  final scannedType = Rx<BarcodeType?>(null);
+  final currentZoom = 1.0.obs;
+  final shouldAdjustZoom = true.obs;
+  final noDetectionCount = 0.obs;
+  final lastDetectedBarcodeSize = 0.0.obs;
+  final isControllerReady = false.obs;
+  final isDialogShowing = false.obs;
+  final isZoomed = false.obs;
+  final showZoomOutButton = false.obs;
+  final countdownSeconds = 10.obs;
 
+  DateTime? _countdownStartTime;
+  Timer? _countdownTimer;
+  Timer? _zoomTimer;
 
-// To this:
   @override
-
   void onInit() {
     super.onInit();
     initializeCamera();
-    _setupAnimation();
-  }
-  void _setupAnimation() {
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-
-    _scanAnimation = Tween<double>(begin: 0, end: 1).animate(_animationController)
-      ..addListener(() {
-        scanLinePosition.value = _scanAnimation.value;
-      });
-
-    _animationController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _animationController.reverse();
-      } else if (status == AnimationStatus.dismissed) {
-        _animationController.forward();
-      }
-    });
-
-    if (!isScanPaused.value) {
-      _animationController.repeat();
-    }
   }
 
   Future<void> initializeCamera() async {
+    cameraController = MobileScannerController(
+      autoStart: true,
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      facing: CameraFacing.back,
+      torchEnabled: false,
+    );
+
+    zoomController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    );
+
+    zoomAnimation = Tween<double>(begin: 1.0, end: 2.0).animate(
+      CurvedAnimation(parent: zoomController, curve: Curves.easeInOut),
+    )..addListener(handleZoomChange);
+
     try {
-      state.value = ScannerState.initializing;
-
-      final cameras = await _repository.getAvailableCameras();
-      final backCamera = cameras.firstWhere(
-            (camera) => camera.lensDirection == CameraLensDirection.back,
-      );
-
-      mobileScannerController.value = await _repository.createScannerController(
-        torchEnabled: flashEnabled.value,
-        formats: [BarcodeFormat.all],
-        autoStart: true,
-      );
-
-      // Reset zoom immediately after controller creation
-      mobileScannerController.value?.setZoomScale(1.0);
-      isZoomed.value = false;
-
-      cameraController.value = await _repository.createCameraController(
-        camera: backCamera,
-        resolutionPreset: ResolutionPreset.high,
-        enableAudio: false,
-      );
-
-      state.value = ScannerState.ready;
+      await cameraController.autoStart;
+      isControllerReady.value = true;
+      startInitialZoom();
     } catch (e) {
-      state.value = ScannerState.error;
-      Get.snackbar('Error', 'Failed to initialize camera: $e');
+      debugPrint('Camera controller error: $e');
     }
   }
 
+  void handleZoomChange() {
+    if (!isControllerReady.value || !shouldAdjustZoom.value) return;
+    currentZoom.value = zoomAnimation.value;
+    _repository.setZoom(cameraController, currentZoom.value).catchError(
+          (e) => debugPrint('Error setting zoom: $e'),
+    );
+  }
 
+  void startInitialZoom() {
+    if (hasScanned.value) return;
 
+    _zoomTimer?.cancel();
+    _countdownTimer?.cancel();
+    countdownSeconds.value = 10;
+    _countdownStartTime = DateTime.now();
 
-  void onBarcodeDetected(BarcodeCapture capture) {
-    _scanDebouncer.value.cancel();
-    _scanDebouncer.value = Timer(Duration(milliseconds: 200), () {
-      if (state.value != ScannerState.ready) return;
-      // Reset zoom at start of detection
-      resetZoom();
-      final barcodes = capture.barcodes;
-      if (barcodes.isNotEmpty) {
-        final barcode = barcodes.first;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!isControllerReady.value || hasScanned.value) {
+        timer.cancel();
+        return;
+      }
+      final elapsed = DateTime.now().difference(_countdownStartTime!).inSeconds;
+      countdownSeconds.value = 10 - elapsed;
 
-        // Store scan result
-        lastScanResult.value = ScanResult(
-          content: barcode.rawValue ?? 'No Content',
-          type: _getBarcodeTypeString(barcode.type),
-        );
-
-        // Calculate barcode position and size
-        if (barcode.corners != null && barcode.corners!.isNotEmpty) {
-          final corners = barcode.corners!;
-
-          // Calculate bounding box of detected barcode
-          double minX = corners[0].dx;
-          double maxX = corners[0].dx;
-          double minY = corners[0].dy;
-          double maxY = corners[0].dy;
-
-          for (final corner in corners) {
-            minX = min(minX, corner.dx);
-            maxX = max(maxX, corner.dx);
-            minY = min(minY, corner.dy);
-            maxY = max(maxY, corner.dy);
-          }
-
-          detectedBarcodeSize.value = Size(maxX - minX, maxY - minY);
-          detectedBarcodeOffset.value = Offset(minX, minY);
-
-          // Calculate target position (center of the scanner box)
-          final screenSize = Get.size;
-          final scannerBoxWidth = screenSize.width * 0.7;
-          final scannerBoxHeight = scannerBoxWidth;
-          final scannerBoxTop = screenSize.height / 2 - scannerBoxHeight / 2;
-          final scannerBoxLeft = screenSize.width / 2 - scannerBoxWidth / 2;
-
-          targetRect.value = Rect.fromLTWH(
-            scannerBoxLeft,
-            scannerBoxTop,
-            scannerBoxWidth,
-            scannerBoxHeight,
-          );
-
-          // Calculate required translation to center the barcode
-          final barcodeCenter = Offset(
-            minX + detectedBarcodeSize.value.width / 2,
-            minY + detectedBarcodeSize.value.height / 2,
-          );
-
-          final targetCenter = Offset(
-            targetRect.value.center.dx,
-            targetRect.value.center.dy,
-          );
-
-          final translationRequired = targetCenter - barcodeCenter;
-
-          // Apply smooth translation
-          shouldCenterBarcode.value = true;
-          Future.delayed(Duration(milliseconds: 300), () {
-            shouldCenterBarcode.value = false;
-            _processScanResult();
+      if (countdownSeconds.value <= 0) {
+        timer.cancel();
+        showZoomOutButton.value = true;
+        if (shouldAdjustZoom.value) {
+          zoomController.animateTo(0.1, duration: const Duration(seconds: 30), curve: Curves.linear).then((_) {
+            isZoomed.value = true;
           });
-
-          // Adjust camera zoom/position based on barcode size
-          _adjustCameraForBarcode(barcode);
         }
       }
-    } );
-  }
-// Update the _adjustCameraForBarcode method with these changes
-  void _adjustCameraForBarcode(Barcode barcode) {
-    if (barcode.corners == null || barcode.corners!.isEmpty) return;
-    if (isUserZoomed.value) return;
-
-    final center = _calculateBarcodeCenter(barcode.corners!);
-    final distanceFromCenter = _calculateDistanceFromCenter(center);
-    final sizeFactor = _calculateBarcodeSizeFactor(barcode);
-
-    final zoomLevel = _calculateOptimalZoom(distanceFromCenter, sizeFactor);
-    _smoothZoomTo(zoomLevel);
-  }
-// Add these methods to your ScannerController class
-
-  Offset _calculateBarcodeCenter(List<Offset> corners) {
-    double sumX = 0;
-    double sumY = 0;
-
-    for (final corner in corners) {
-      sumX += corner.dx;
-      sumY += corner.dy;
-    }
-
-    return Offset(
-      sumX / corners.length,
-      sumY / corners.length,
-    );
-  }
-
-  double _calculateDistanceFromCenter(Offset barcodeCenter) {
-    final screenCenter = Offset(0.5, 0.5); // Normalized screen coordinates
-    return sqrt(
-      pow(barcodeCenter.dx - screenCenter.dx, 2) +
-          pow(barcodeCenter.dy - screenCenter.dy, 2),
-    );
-  }
-
-  double _calculateBarcodeSizeFactor(Barcode barcode) {
-    if (barcode.corners == null || barcode.corners!.isEmpty) return 1.0;
-
-    final corners = barcode.corners!;
-    double minX = corners[0].dx;
-    double maxX = corners[0].dx;
-    double minY = corners[0].dy;
-    double maxY = corners[0].dy;
-
-    for (final corner in corners) {
-      minX = min(minX, corner.dx);
-      maxX = max(maxX, corner.dx);
-      minY = min(minY, corner.dy);
-      maxY = max(maxY, corner.dy);
-    }
-
-    final barcodeWidth = maxX - minX;
-    final barcodeHeight = maxY - minY;
-    final barcodeSize = min(barcodeWidth, barcodeHeight);
-
-    // Target size is about 30% of screen width
-    const targetSize = 0.3;
-    return barcodeSize / targetSize;
-  }
-
-  double _calculateOptimalZoom(double distance, double sizeFactor) {
-    const maxDistance = 0.35;
-    const minZoom = 1.0;
-    const maxZoom = 3.0;
-
-    // Distance-based zoom (more important when far from center)
-    final distanceZoom = minZoom + (distance / maxDistance).clamp(0, 1) * (maxZoom - minZoom);
-
-    // Size-based zoom (more important when barcode is small)
-    final sizeZoom = 1.0 + (1.0 - sizeFactor).clamp(0, 1) * (maxZoom - minZoom);
-
-    // Weighted average favoring size factor more
-    return (sizeZoom * 0.7 + distanceZoom * 0.3).clamp(minZoom, maxZoom);
-  }
-
-
-
-  void _smoothZoomTo(double targetZoom) {
-    _zoomDebounceTimer.value.cancel();
-    _animationController.stop(); // Pause scanning animation during zoom
-
-    final animation = Tween<double>(
-      begin: currentZoomLevel.value,
-      end: targetZoom.clamp(1.0, 3.0),
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-
-    animation.addListener(() {
-      mobileScannerController.value?.setZoomScale(animation.value);
-      currentZoomLevel.value = animation.value;
-      isZoomed.value = animation.value > 1.1;
     });
 
-    _animationController.forward(from: 0).then((_) {
-      if (!isScanPaused.value) {
-        _animationController.repeat(); // Resume scanning animation
+    _zoomTimer = Timer(const Duration(seconds: 10), () {
+      if (!hasScanned.value && isControllerReady.value && shouldAdjustZoom.value) {
+        zoomController.animateTo(0.1, duration: const Duration(seconds: 30), curve: Curves.linear);
       }
     });
   }
-// Update the toggleZoom method to be less aggressive
 
-  String _getBarcodeTypeString(BarcodeType type) {
-    switch (type) {
-      case BarcodeType.product:
-        return 'QR Code';
-      case BarcodeType.isbn:
-        return 'EAN-13';
-      // case BarcodeType.upca:
-      //   return 'UPC-A';
-    // Add other types as needed
-      default:
-        return type.toString().split('.').last;
+  void zoomOutManually() {
+    zoomController.reset();
+    zoomController.animateTo(1.0, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOut).then((_) {
+      isZoomed.value = false;
+      showZoomOutButton.value = false;
+      startInitialZoom();
+    });
+  }
+
+  void handleBarcode(BarcodeCapture barcode) {
+    if (!isControllerReady.value || hasScanned.value || barcode.barcodes.isEmpty) {
+      noDetectionCount.value++;
+      if (noDetectionCount.value > 5 && shouldAdjustZoom.value) {
+        adjustZoomForNoDetection();
+      }
+      return;
+    }
+
+    final firstBarcode = barcode.barcodes.first;
+    final corners = firstBarcode.corners;
+    if (corners.length >= 4) {
+      handleSmartZoom(corners);
+    }
+
+    hasScanned.value = true;
+    scannedValue.value = firstBarcode.rawValue ?? '';
+    scannedType.value = firstBarcode.type;
+    shouldAdjustZoom.value = false;
+    noDetectionCount.value = 0;
+    HapticFeedback.mediumImpact();
+    _showResultDialog();
+  }
+  void _showResultDialog() {
+    Get.dialog<void>(
+      ScaleTransition(
+        scale: CurvedAnimation(
+          parent: AlwaysStoppedAnimation(1.0),
+          curve: Curves.easeOutBack,
+        ),
+        child: ScanResultDialog(
+          value: scannedValue.value,
+          type: scannedType.value,
+          onScanAgain: () {
+            Get.back<dynamic>();
+            resetScanner();
+          },
+          onClose: () {
+            Get.back<dynamic>();
+            resetScanner();
+          },
+        ),
+      ),
+      barrierDismissible: false,
+      barrierColor: Colors.black.withAlpha(179),
+      transitionDuration: const Duration(milliseconds: 400),
+      transitionCurve: Curves.easeOutQuart,
+    ).then((_) => isDialogShowing.value = false);
+  }
+  void handleSmartZoom(List<Offset> corners) {
+    final width = (corners[1].dx - corners[0].dx).abs();
+    final height = (corners[3].dy - corners[0].dy).abs();
+    final barcodeSize = (width + height) / 2;
+    lastDetectedBarcodeSize.value = barcodeSize;
+
+    final screenSize = Get.size;
+    final screenDiagonal = sqrt(pow(screenSize.width, 2) + pow(screenSize.height, 2));
+
+    Offset barcodeCenter = Offset.zero;
+    for (final corner in corners) {
+      barcodeCenter += corner;
+    }
+    barcodeCenter /= corners.length.toDouble();
+
+    final normalizedSize = (barcodeSize / screenDiagonal).clamp(0.01, 0.99);
+
+    double targetZoom = normalizedSize < 0.1 ? 0.9 : (normalizedSize < 0.3 ? 0.6 : 0.3);
+
+    final centerOffset = Offset(
+      (barcodeCenter.dx - screenSize.width / 2) / (screenSize.width / 2),
+      (barcodeCenter.dy - screenSize.height / 2) / (screenSize.height / 2),
+    );
+    final centerDistance = sqrt(pow(centerOffset.dx, 2) + pow(centerOffset.dy, 2));
+
+    if (centerDistance > 0.4) {
+      targetZoom *= (1 - centerDistance * 0.5).clamp(0.3, 1.0);
+    }
+
+    zoomController.animateTo(targetZoom, duration: const Duration(milliseconds: 1500), curve: Curves.easeInOut).then((_) {
+      startInitialZoom();
+    });
+  }
+
+  void adjustZoomForNoDetection() {
+    final currentValue = zoomController.value;
+    final target = currentValue > 0.1 ? currentValue * 0.8 : 0.3;
+    zoomController.animateTo(target, duration: const Duration(milliseconds: 3000), curve: Curves.easeInOut);
+    noDetectionCount.value = 0;
+  }
+
+  Future<void> resetScanner() async {
+    _zoomTimer?.cancel();
+    _countdownTimer?.cancel();
+    countdownSeconds.value = 10;
+    showZoomOutButton.value = false;
+    isZoomed.value = false;
+    zoomController.stop();
+
+    hasScanned.value = false;
+    scannedValue.value = '';
+    scannedType.value = null;
+    shouldAdjustZoom.value = true;
+    noDetectionCount.value = 0;
+    currentZoom.value = 1.0;
+
+    zoomController.value = 0.3;
+
+    try {
+      await cameraController.stop();
+      await cameraController.start();
+      startInitialZoom();
+    } catch (e) {
+      debugPrint('Error resetting camera: $e');
+      await initializeCamera();
     }
   }
 
-
-
-  void _processScanResult() {
-    state.value = ScannerState.paused;
-    mobileScannerController.value?.stop(); // Updated API
-  }
-
-  void resumeScanning() {
-    state.value = ScannerState.ready;
-    resetZoom(); // Add this line
-    mobileScannerController.value?.start();
-    _animationController.repeat();
-  }
-  void toggleFlash() {
-    flashEnabled.toggle();
-    mobileScannerController.value?.toggleTorch();
-  }
-
-  var isUserZoomed = false.obs;
-  var lastAutoZoom = 1.0.obs;
-
-  Future<void> toggleZoom() async {
-    await HapticFeedback.lightImpact();
-    if (isUserZoomed.value) {
-      _smoothZoomTo(lastAutoZoom.value); // Return to auto-zoom level
-    } else {
-      lastAutoZoom.value = currentZoomLevel.value;
-      _smoothZoomTo(min(currentZoomLevel.value + 1.0, 3.0));
-    }
-    isUserZoomed.toggle();
-  }
-
-// Add pinch-to-zoom gesture support
-  void handlePinchZoom(double scale) {
-    final newZoom = (currentZoomLevel.value * scale).clamp(1.0, 3.0);
-    _smoothZoomTo(newZoom);
-  }
-
-  void resetZoom() {
-    _smoothZoomTo(1.0);
+  Future<void> toggleTorch() async {
+    isTorchOn.value = await _repository.toggleTorch(cameraController, isTorchOn.value);
   }
 
   @override
   void onClose() {
-    _zoomDebounceTimer.value.cancel();
-    _animationController.dispose();
-    _animationController.dispose();
-    _repository.disposeControllers(
-      scannerController: mobileScannerController.value,
-      cameraController: cameraController.value,
-    );
+    _zoomTimer?.cancel();
+    _countdownTimer?.cancel();
+    zoomController.dispose();
+    if (isControllerReady.value) {
+      cameraController.dispose();
+    }
     super.onClose();
   }
 }

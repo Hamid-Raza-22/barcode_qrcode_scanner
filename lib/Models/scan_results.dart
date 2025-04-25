@@ -1,18 +1,15 @@
-class ScanResult {
-  final String content;
-  final String type;
-  final DateTime scanTime;
+// models/scan_result_model.dart
+import 'dart:ui';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
-  ScanResult({
-    required this.content,
-    required this.type,
-  }) : scanTime = DateTime.now();
+class ScanResultModel {
+  final String? value;
+  final BarcodeType? type;
+  final List<Offset>? corners;
 
-  Map<String, dynamic> toMap() {
-    return {
-      'content': content,
-      'type': type,
-      'scanTime': scanTime.toIso8601String(),
-    };
-  }
+  ScanResultModel({
+    this.value,
+    this.type,
+    this.corners,
+  });
 }
