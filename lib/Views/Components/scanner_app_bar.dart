@@ -10,7 +10,7 @@ class ScannerAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: MediaQuery.of(Get.context!).padding.top + 16,
+      top: MediaQuery.of(Get.context!).padding.top + 40,
       left: 16,
       right: 16,
       child: Row(
