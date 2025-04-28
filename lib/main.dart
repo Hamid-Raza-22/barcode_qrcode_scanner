@@ -1,41 +1,41 @@
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:barcode_qrcode_scanner/ViewModels/scanner_view_model.dart';
-import 'package:barcode_qrcode_scanner/views/scanner_screen.dart';
-
-Future<void> main() async {
-  // Ensure Flutter binding is initialized
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize the app
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Barcode Scanner',
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      initialBinding: ScannerBinding(), // Use GetX binding for dependency injection
-      home:  ScannerScreen(),
-    );
-  }
-}
-
-// Create a binding class to handle dependency injection
-class ScannerBinding extends Bindings {
-  @override
-  void dependencies() {
-    Get.put(ScannerViewModel(), permanent: true);
-  }
-}
+// import 'package:flutter/material.dart';
+// import 'package:get/get.dart';
+// import 'package:barcode_qrcode_scanner/ViewModels/scanner_view_model.dart';
+// import 'package:barcode_qrcode_scanner/views/scanner_screen.dart';
+//
+// Future<void> main() async {
+//   // Ensure Flutter binding is initialized
+//   WidgetsFlutterBinding.ensureInitialized();
+//
+//   // Initialize the app
+//   runApp(const MyApp());
+// }
+//
+// class MyApp extends StatelessWidget {
+//   const MyApp({super.key});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return GetMaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       title: 'Barcode Scanner',
+//       theme: ThemeData(
+//         primarySwatch: Colors.indigo,
+//         visualDensity: VisualDensity.adaptivePlatformDensity,
+//       ),
+//       initialBinding: ScannerBinding(), // Use GetX binding for dependency injection
+//       home:  ScannerScreen(),
+//     );
+//   }
+// }
+//
+// // Create a binding class to handle dependency injection
+// class ScannerBinding extends Bindings {
+//   @override
+//   void dependencies() {
+//     Get.put(ScannerViewModel(), permanent: true);
+//   }
+// }
 
 // import 'package:flutter/material.dart';
 // import 'package:mobile_scanner/mobile_scanner.dart';
@@ -285,7 +285,6 @@ class ScannerBinding extends Bindings {
 // }
 //
 //
-//
 
 
 
@@ -294,273 +293,277 @@ class ScannerBinding extends Bindings {
 
 
 
-// import 'dart:io';
-// import 'dart:typed_data';
-// import 'package:camera/camera.dart';
-// import 'package:flutter/foundation.dart';
-// import 'package:flutter/material.dart';
-// import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-// import 'package:permission_handler/permission_handler.dart';
-//
-// void main() async {
-//   WidgetsFlutterBinding.ensureInitialized();
-//   final cameras = await availableCameras();
-//   runApp(MyApp(cameras: cameras));
-// }
-//
-// class MyApp extends StatelessWidget {
-//   final List<CameraDescription> cameras;
-//   const MyApp({super.key, required this.cameras});
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return MaterialApp(
-//       title: 'QR Code Scanner',
-//       theme: ThemeData(
-//         primarySwatch: Colors.blue,
-//       ),
-//       home: QRScannerPage(cameras: cameras),
-//       debugShowCheckedModeBanner: false,
-//     );
-//   }
-// }
-//
-// class QRScannerPage extends StatefulWidget {
-//   final List<CameraDescription> cameras;
-//   const QRScannerPage({super.key, required this.cameras});
-//
-//   @override
-//   State<QRScannerPage> createState() => _QRScannerPageState();
-// }
-//
-// class _QRScannerPageState extends State<QRScannerPage> {
-//   late CameraController _cameraController;
-//   late BarcodeScanner _barcodeScanner;
-//   bool _isDetecting = false;
-//   String? _barcodeValue;
-//
-//   @override
-//   void initState() {
-//     super.initState();
-//     _initialize();
-//   }
-//
-//   Future<void> _initialize() async {
-//     await Permission.camera.request();
-//
-//     _barcodeScanner = BarcodeScanner();
-//
-//     _cameraController = CameraController(
-//       widget.cameras.firstWhere(
-//             (camera) => camera.lensDirection == CameraLensDirection.back,
-//       ),
-//       ResolutionPreset.medium,
-//       enableAudio: false,
-//     );
-//
-//     await _cameraController.initialize();
-//     _startImageStream();
-//     setState(() {});
-//   }
-//
-//   void _startImageStream() {
-//     _cameraController.startImageStream((CameraImage cameraImage) async {
-//       if (_isDetecting) return;
-//       _isDetecting = true;
-//
-//       try {
-//         final WriteBuffer allBytes = WriteBuffer();
-//         for (Plane plane in cameraImage.planes) {
-//           allBytes.putUint8List(plane.bytes);
-//         }
-//         final bytes = allBytes.done().buffer.asUint8List();
-//
-//         final inputImage = InputImage.fromBytes(
-//           bytes: bytes,
-//           metadata: InputImageMetadata(
-//             size: Size(
-//               cameraImage.width.toDouble(),
-//               cameraImage.height.toDouble(),
-//             ),
-//             rotation: InputImageRotation.rotation0deg,
-//             format: Platform.isAndroid
-//                 ? InputImageFormat.nv21
-//                 : InputImageFormat.bgra8888,
-//             bytesPerRow: Platform.isAndroid
-//                 ? 0
-//                 : cameraImage.planes.first.bytesPerRow,
-//           ),
-//         );
-//
-//         final List<Barcode> barcodes = await _barcodeScanner.processImage(inputImage);
-//
-//         if (barcodes.isNotEmpty) {
-//           final value = barcodes.first.rawValue;
-//
-//           if (value != null && value != _barcodeValue) {
-//             setState(() {
-//               _barcodeValue = value;
-//             });
-//
-//             // ✅ Show Dialog when QR is scanned
-//             if (mounted) {
-//               showDialog(
-//                 context: context,
-//                 builder: (context) => AlertDialog(
-//                   title: const Text('QR Code Detected!'),
-//                   content: Text(value),
-//                   actions: [
-//                     TextButton(
-//                       onPressed: () => Navigator.pop(context),
-//                       child: const Text('OK'),
-//                     ),
-//                   ],
-//                 ),
-//               );
-//             }
-//           }
-//         }
-//       } catch (e) {
-//         print('Error during scanning: $e');
-//       } finally {
-//         _isDetecting = false;
-//       }
-//     });
-//   }
-//
-//   @override
-//   void dispose() {
-//     _cameraController.dispose();
-//     _barcodeScanner.close();
-//     super.dispose();
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     if (!_cameraController.value.isInitialized) {
-//       return const Scaffold(
-//         body: Center(child: CircularProgressIndicator()),
-//       );
-//     }
-//
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('QR Code Scanner'),
-//       ),
-//       body: Stack(
-//         children: [
-//           CameraPreview(_cameraController),
-//           if (_barcodeValue != null)
-//             Align(
-//               alignment: Alignment.bottomCenter,
-//               child: Container(
-//                 color: Colors.black54,
-//                 padding: const EdgeInsets.all(16),
-//                 child: Text(
-//                   'Scanned: $_barcodeValue',
-//                   style: const TextStyle(
-//                     color: Colors.white,
-//                     fontSize: 20,
-//                   ),
-//                 ),
-//               ),
-//             ),
-//         ],
-//       ),
-//     );
-//   }
-// }
+
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart' as mlkit;
+import 'package:mobile_scanner/mobile_scanner.dart';
+// import 'package:mobile_scanner/mobile_scanner.dart';
+// import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final cameras = await availableCameras();
+  runApp(MyApp(cameras: cameras));
+}
+
+class MyApp extends StatelessWidget {
+  final List<CameraDescription> cameras;
+  const MyApp({super.key, required this.cameras});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'QR Code Scanner',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: QRScannerPage(cameras: cameras),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class QRScannerPage extends StatefulWidget {
+  final List<CameraDescription> cameras;
+  const QRScannerPage({super.key, required this.cameras});
+
+  @override
+  State<QRScannerPage> createState() => _QRScannerPageState();
+}
+
+class _QRScannerPageState extends State<QRScannerPage> {
+  late CameraController _cameraController;
+  late mlkit.BarcodeScanner _barcodeScanner;
+  bool _isDetecting = false;
+  String? _barcodeValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await Permission.camera.request();
+
+    _barcodeScanner =  mlkit.BarcodeScanner();
+
+    _cameraController = CameraController(
+      widget.cameras.firstWhere(
+            (camera) => camera.lensDirection == CameraLensDirection.back,
+      ),
+      ResolutionPreset.medium,
+      enableAudio: false,
+    );
+
+    await _cameraController.initialize();
+    _startImageStream();
+    setState(() {});
+  }
+
+  void _startImageStream() {
+    _cameraController.startImageStream((CameraImage cameraImage) async {
+      if (_isDetecting) return;
+      _isDetecting = true;
+
+      try {
+        final WriteBuffer allBytes = WriteBuffer();
+        for (Plane plane in cameraImage.planes) {
+          allBytes.putUint8List(plane.bytes);
+        }
+        final bytes = allBytes.done().buffer.asUint8List();
+
+        final inputImage = mlkit.InputImage.fromBytes(
+          bytes: bytes,
+          metadata: mlkit.InputImageMetadata(
+            size: Size(
+              cameraImage.width.toDouble(),
+              cameraImage.height.toDouble(),
+            ),
+            rotation: mlkit.InputImageRotation.rotation0deg,
+            format: Platform.isAndroid
+                ? mlkit.InputImageFormat.nv21
+                : mlkit.InputImageFormat.bgra8888,
+            bytesPerRow: Platform.isAndroid
+                ? 0
+                : cameraImage.planes.first.bytesPerRow,
+          ),
+        );
+
+        final List<mlkit.Barcode> barcodes = await _barcodeScanner.processImage(inputImage);
+
+        if (barcodes.isNotEmpty) {
+          final value = barcodes.first.rawValue;
+
+          if (value != null && value != _barcodeValue) {
+            setState(() {
+              _barcodeValue = value;
+            });
+
+            // ✅ Show Dialog when QR is scanned
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('QR Code Detected!'),
+                  content: Text(value),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+        }
+      } catch (e) {
+        print('Error during scanning: $e');
+      } finally {
+        _isDetecting = false;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _cameraController.dispose();
+    _barcodeScanner.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_cameraController.value.isInitialized) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('QR Code Scanner'),
+      ),
+      body: Stack(
+        children: [
+          CameraPreview(_cameraController),
+          if (_barcodeValue != null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                color: Colors.black54,
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Scanned: $_barcodeValue',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 
 
-//
-// class QRScannerScreen extends StatefulWidget {
-//   const QRScannerScreen({super.key});
-//
-//   @override
-//   State<QRScannerScreen> createState() => _QRScannerScreenState();
-// }
-//
-// class _QRScannerScreenState extends State<QRScannerScreen> {
-//   final MobileScannerController controller = MobileScannerController(
-//     autoStart: true,
-//     formats: [BarcodeFormat.qrCode],
-//     detectionSpeed: DetectionSpeed.noDuplicates,
-//     detectionTimeoutMs: 250,
-//     returnImage: false,
-//
-//
-//   );
-//
-//   bool _torchEnabled = false;
-//   CameraFacing _cameraFacing = CameraFacing.back;
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('QR Code Scanner'),
-//       ),
-//       body: Stack(
-//         children: [
-//           MobileScanner(
-//             controller: controller,
-//             onDetect: (capture) {
-//               final List<Barcode> barcodes = capture.barcodes;
-//               for (final barcode in barcodes) {
-//                 debugPrint('Barcode found! ${barcode.rawValue}');
-//                 // Handle the scanned QR code here
-//               }
-//             },
-//           ),
-//           Align(
-//             alignment: Alignment.bottomCenter,
-//             child: Container(
-//               alignment: Alignment.bottomCenter,
-//               height: 100,
-//               color: Colors.black.withOpacity(0.4),
-//               child: Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-//                 children: [
-//                   IconButton(
-//                     color: Colors.white,
-//                     icon: Icon(
-//                         _torchEnabled ? Icons.flash_on : Icons.flash_off),
-//                     iconSize: 32.0,
-//                     onPressed: () {
-//                       setState(() {
-//                         _torchEnabled = !_torchEnabled;
-//                       });
-//                       controller.toggleTorch();
-//                     },
-//                   ),
-//                   IconButton(
-//                     color: Colors.white,
-//                     icon: Icon(_cameraFacing == CameraFacing.back
-//                         ? Icons.camera_rear
-//                         : Icons.camera_front),
-//                     iconSize: 32.0,
-//                     onPressed: () {
-//                       setState(() {
-//                         _cameraFacing = _cameraFacing == CameraFacing.back
-//                             ? CameraFacing.front
-//                             : CameraFacing.back;
-//                       });
-//                       controller.switchCamera();
-//                     },
-//                   ),
-//                 ],
-//               ),
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-//
-//   @override
-//   void dispose() {
-//     controller.dispose();
-//     super.dispose();
-//   }
-// }
+
+class QRScannerScreen extends StatefulWidget {
+  const QRScannerScreen({super.key});
+
+  @override
+  State<QRScannerScreen> createState() => _QRScannerScreenState();
+}
+
+class _QRScannerScreenState extends State<QRScannerScreen> {
+  final MobileScannerController controller = MobileScannerController(
+    autoStart: true,
+    formats: [BarcodeFormat.qrCode],
+    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionTimeoutMs: 250,
+    returnImage: false,
+
+
+  );
+
+  bool _torchEnabled = false;
+  CameraFacing _cameraFacing = CameraFacing.back;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('QR Code Scanner'),
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: controller,
+            onDetect: (capture) {
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                debugPrint('Barcode found! ${barcode.rawValue}');
+                // Handle the scanned QR code here
+              }
+            },
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              alignment: Alignment.bottomCenter,
+              height: 100,
+              color: Colors.black.withOpacity(0.4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    color: Colors.white,
+                    icon: Icon(
+                        _torchEnabled ? Icons.flash_on : Icons.flash_off),
+                    iconSize: 32.0,
+                    onPressed: () {
+                      setState(() {
+                        _torchEnabled = !_torchEnabled;
+                      });
+                      controller.toggleTorch();
+                    },
+                  ),
+                  IconButton(
+                    color: Colors.white,
+                    icon: Icon(_cameraFacing == CameraFacing.back
+                        ? Icons.camera_rear
+                        : Icons.camera_front),
+                    iconSize: 32.0,
+                    onPressed: () {
+                      setState(() {
+                        _cameraFacing = _cameraFacing == CameraFacing.back
+                            ? CameraFacing.front
+                            : CameraFacing.back;
+                      });
+                      controller.switchCamera();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
