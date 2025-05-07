@@ -61,7 +61,7 @@ lib/
     - Bridges Flutter and native Android code
 
 ### ViewModels
-**File:** `lib/View_models/scanner_view_model.dart`
+**File:** `lib/ViewModels/scanner_view_model.dart`
 - Manages application state using GetX
 - Functions:
     - Processes business logic
@@ -85,7 +85,7 @@ lib/
 ## 3: Android Native Components
 ---
 ### MainActivity.kt
-**Location:** `android/app/src/main/kotlin/<your-package>/MainActivity.kt`
+**Location:** `android/app/src/main/kotlin/com/example/barcode_qrcode_scanner/MainActivity.kt`
 
 #### 3.A: Initialization
 - Configures ML Kit Barcode Scanner with:
