@@ -116,55 +116,26 @@ lib/
 
 #### 3.C: Scan Process Flow
 ```mermaid
-
 sequenceDiagram
-  participant UI as ScannerScreen
-  participant VM as ScannerViewModel
-  participant Repo as ScannerRepository
-  participant Service as GoogleCodeScanner
-  participant Android as MainActivity
-  participant MLKit as GmsBarcodeScanner
- 
-  UI->>VM: User taps "Start Scanning"
-  VM->>Repo: startScan()
-  Repo->>Service: scan()
-  Service->>Android: invokeMethod("startScan")
-  Android->>MLKit: startScan()
-  MLKit-->>Android: Shows scanner UI
-
-
-sequenceDiagram
-  participant MLKit as GmsBarcodeScanner
-  participant Android as MainActivity
-  participant Service as GoogleCodeScanner
-  participant Repo as ScannerRepository
-  participant VM as ScannerViewModel
-  participant UI as ScannerScreen
- 
-  MLKit->>Android: Returns Barcode object
-  Android->>Service: Converts to Map{rawValue, format}
-  Service->>Repo: Returns Map
-  Repo->>VM: Creates ScanResult model
-  VM->>UI: Updates Obx() widgets
-
-Native Android (Kotlin):
-Barcode Object → 
-  Map<String,Object> → 
-    Platform Channel → 
-      Flutter (Dart): Map<String,dynamic> → 
-        ScanResult Model
-
-
-### Workflow
-sequenceDiagram
-    User->>UI: Tap Scan Button
-    UI->>ViewModel: startScan()
-    ViewModel->>Repository: scan()
-    Repository->>Service: invokeMethod()
+    participant User
+    participant UI as ScannerScreen
+    participant VM as ScannerViewModel
+    participant Repo as ScannerRepository
+    participant Service as GoogleCodeScanner
+    participant Android as MainActivity
+    participant MLKit as GmsBarcodeScanner
+    
+    User->>UI: Taps Scan Button
+    UI->>VM: startScan()
+    VM->>Repo: scan()
+    Repo->>Service: invokeNativeScan()
     Service->>Android: "startScan"
-    Android->>MLKit: Launch Scanner
-    MLKit-->>User: Show Camera UI
-    User->>MLKit: Scan Barcode
-    MLKit->>Android: Return Result
-    Android->>Flutter: Send Data Map
-    Flutter->>UI: Update Results
+    Android->>MLKit: startScan()
+    MLKit-->>User: Shows scanner UI
+    User->>MLKit: Scans barcode
+    MLKit->>Android: Returns Barcode
+    Android->>Service: Converts to Map
+    Service->>Repo: Returns Map
+    Repo->>VM: Creates ScanResult
+    VM->>UI: Updates state
+    UI-->>User: Shows results
