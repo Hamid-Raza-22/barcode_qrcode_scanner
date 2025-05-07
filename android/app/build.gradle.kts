@@ -29,20 +29,35 @@ android {
         versionCode = flutter.versionCode.toInt()
         versionName = flutter.versionName
     }
-
+//    buildFeatures {
+//        // Disable deferred components to prevent R8 errors
+//        deferredComponents = false
+//    }
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
 }
 
 flutter {
     source = "../.."
 }
 
-//dependencies {
-//    implementation 'com.google.mlkit:barcode-scanning:17.2.0'
-//}
+dependencies {
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+//    implementation("com.google.mlkit:barcode-scanning-common:17.1.0")
+//    implementation("com.google.mlkit:codescanner:16.1.0")
+    implementation ("com.google.android.play:core:1.10.3")
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
+
+
+}

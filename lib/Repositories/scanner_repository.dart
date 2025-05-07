@@ -1,31 +1,19 @@
-import 'package:mobile_scanner/mobile_scanner.dart';
+// lib/repositories/scanner_repository.dart
+import 'package:get/get.dart';
+import '../Services/google_code_scanner.dart';
+import '../models/scan_result.dart';
+
 
 class ScannerRepository {
-  Future<bool> toggleTorch(
-      MobileScannerController controller,
-      bool currentState,
-      ) async {
-    await controller.toggleTorch();
-    return !currentState;
-  }
+  final GoogleCodeScanner _scanner = GoogleCodeScanner();
 
-  Future<void> setZoom(
-      MobileScannerController controller,
-      double zoom,
-      ) async {
+  Future<ScanResult> scan() async {
     try {
-      await controller.setZoomScale(zoom);
+      final result = await _scanner.scan();
+      return ScanResult.fromMap(result ?? {});
     } catch (e) {
-      throw Exception('Failed to set zoom: $e');
-    }
-  }
-
-  Future<void> restartCamera(MobileScannerController controller) async {
-    try {
-      await controller.stop();
-      await controller.start();
-    } catch (e) {
-      throw Exception('Failed to restart camera: $e');
+      Get.snackbar('Error', 'Failed to scan: $e');
+      return ScanResult(); // Returns empty result
     }
   }
 }

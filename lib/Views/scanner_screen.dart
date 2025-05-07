@@ -1,36 +1,54 @@
+// lib/views/scanner_screen.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-import '../ViewModels/scanner_view_model.dart';
-import 'Components/scanner_app_bar.dart';
-import 'Components/scanner_debug_info.dart';
-import 'Components/scanner_overlay.dart';
 
+import '../ViewModels/scanner_view_model.dart';
 
 class ScannerScreen extends StatelessWidget {
-  ScannerScreen({Key? key}) : super(key: key);
-
   final ScannerViewModel viewModel = Get.put(ScannerViewModel());
+
+  ScannerScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Obx(
-            () => Stack(
+      appBar: AppBar(title: const Text('Auto Zoom Barcode Scanner')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (viewModel.isControllerReady.value)
-              MobileScanner(
-                controller: viewModel.cameraController,
-                onDetect: viewModel.handleBarcode,
-                fit: BoxFit.contain,
-              ),
-            if (!viewModel.isControllerReady.value)
-              const Center(child: CircularProgressIndicator(color: Colors.white)),
-            const ScannerOverlay(),
-            ScannerAppBar(viewModel: viewModel),
-            if (viewModel.isControllerReady.value)
-              ScannerDebugInfo(viewModel: viewModel),
+            Obx(() => ElevatedButton(
+              onPressed: viewModel.isLoading.value ? null : viewModel.startScan,
+              child: viewModel.isLoading.value
+                  ? const CircularProgressIndicator()
+                  : const Text('Start Scanning'),
+            )),
+            const SizedBox(height: 20),
+            Obx(() {
+              if (viewModel.scanResult.value.rawValue != null) {
+                return Column(
+                  children: [
+                    const Text('Scan Result:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    SelectableText(
+                      viewModel.scanResult.value.toString(),
+                      style: const TextStyle(fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (viewModel.scanResult.value.format != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Format: ${viewModel.scanResult.value.format}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                  ],
+                );
+              }
+              return const SizedBox();
+            }),
           ],
         ),
       ),
