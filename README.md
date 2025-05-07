@@ -139,3 +139,9 @@ sequenceDiagram
     Repo->>VM: Creates ScanResult
     VM->>UI: Updates state
     UI-->>User: Shows results
+
+flowchart LR
+    A[Barcode Object] --> B[Map<String,Object>]
+    B --> C[Platform Channel]
+    C --> D[Map<String,dynamic>]
+    D --> E[ScanResult Model]
