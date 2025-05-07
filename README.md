@@ -1,6 +1,6 @@
 # 📷 QR Scanner App
 
-This Flutter project implements a scanner screen that mimics the **Google Code Scanner UI** experience. It includes a **live camera preview**, a **stylized scanning box**, **dimmed background**, and a **smooth animated scanning line** to highlight active detection.
+This Flutter project implements a scanner screen that mimics the **Google Code Scanner UI** experience. It includes a **live camera preview**, a **stylized scanning box**, **dimmed background**, and a **smooth painted scanning line** to highlight active detection.
 
 ---
 
